@@ -18,10 +18,11 @@ char *fgetline(FILE *fpntr);
 int main(int argc, char *argv[])
 {
     char bstylechar = 't';
+    char sstylechar = '\t';
     int firstfile = 1;
     int option = 0;
 
-    while ((option = getopt(argc, argv, "b:")) != -1)
+    while ((option = getopt(argc, argv, "b:s:")) != -1)
     {
         switch (option)
         {
@@ -43,6 +44,10 @@ int main(int argc, char *argv[])
                 printf("%s: invalid body numbering style: '%s'\n", argv[0], optarg);
                 return EXIT_FAILURE;
             }
+            break;
+
+        case 's':
+            sstylechar = *optarg;
             break;
 
         case '?':

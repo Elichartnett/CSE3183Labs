@@ -8,12 +8,14 @@
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 #define MAX_LINE_LENGTH 100
 
 // Prototypes:
-void process_stream(FILE *fpntr, char bstylechar, char *sstyle);
-char *fgetline(FILE *fpntr);
+void process_stream(int fd, char bstylechar, char *sstyle);
+char *fgetline(int fd);
+int fgetchar(int fd);
 
 int main(int argc, char *argv[])
 {
@@ -60,32 +62,32 @@ int main(int argc, char *argv[])
     {
         for (int i = firstfile; i < argc; i++)
         {
-            FILE *fpntr;
-            if ((fpntr = fopen(argv[i], "r")) == NULL)
+            int fd;
+            if ((fd = open(argv[i], O_RDONLY)) == -1)
                 fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i], strerror(errno));
             else
             {
-                process_stream(fpntr, bstylechar, sstyle);
-                fclose(fpntr);
+                process_stream(fd, bstylechar, sstyle);
+                close(fd);
             }
         }
     }
 
     else //handle no file(s)
     {
-        process_stream(stdin, bstylechar, sstyle);
+        process_stream(0, bstylechar, sstyle);
     }
 
     return EXIT_SUCCESS;
 }
 
-void process_stream(FILE *fpntr, char bstylechar, char *sstyle)
+void process_stream(int fd, char bstylechar, char *sstyle)
 {
     char *line;
     static int count = 1;
     char *spacer = "\t"; // gets correct nl spacing when not numbering a line
 
-    while ((line = fgetline(fpntr)) != NULL)
+    while ((line = fgetline(fd)) != NULL)
     {
         if (strcmp(line, "\0") != 0)
         {
@@ -114,22 +116,17 @@ void process_stream(FILE *fpntr, char bstylechar, char *sstyle)
     }
 }
 
-char *fgetline(FILE *fpntr)
+char *fgetline(int fd)
 {
     static char buff[MAX_LINE_LENGTH + 2];
 
     int next;
     int pos = 0;
-    while ((next = fgetc(fpntr)) != '\n' && next != EOF)
+    while ((next = fgetchar(fd)) != '\n' && next != EOF)
     {
         buff[pos++] = next;
     }
-    if (ferror(fpntr))
-    {
-        perror("Error occured when reading with fgetc()\n");
-        exit(EXIT_FAILURE);
-    }
-
+   
     buff[pos] = '\0'; // makes buff a valid C string of correct length
 
     if (next == EOF && pos == 0) // handles non-newline terminated files
@@ -137,4 +134,17 @@ char *fgetline(FILE *fpntr)
         return NULL;
     }
     return buff;
+}
+
+int fgetchar(int fd)
+{
+    int letter = 0;
+    int fd_read = read(fd, &letter, 1);
+
+    if (fd_read == -1)
+    {
+        printf("error");
+    }
+
+    return letter;
 }

@@ -12,13 +12,13 @@
 #define MAX_LINE_LENGTH 100
 
 // Prototypes:
-void process_stream(FILE *fpntr, char bstylechar);
+void process_stream(FILE *fpntr, char bstylechar, char *sstyle);
 char *fgetline(FILE *fpntr);
 
 int main(int argc, char *argv[])
 {
     char bstylechar = 't';
-    char sstylechar = '\t';
+    char *sstyle = "\t";
     int firstfile = 1;
     int option = 0;
 
@@ -47,12 +47,13 @@ int main(int argc, char *argv[])
             break;
 
         case 's':
-            sstylechar = *optarg;
+            sstyle = optarg;
             break;
 
         case '?':
             return EXIT_FAILURE;
         }
+        firstfile = optind;
     }
 
     if (argc > firstfile) // file(s) supplied + maybe b option
@@ -64,7 +65,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i], strerror(errno));
             else
             {
-                process_stream(fpntr, bstylechar);
+                process_stream(fpntr, bstylechar, sstyle);
                 fclose(fpntr);
             }
         }
@@ -72,13 +73,13 @@ int main(int argc, char *argv[])
 
     else //handle no file(s)
     {
-        process_stream(stdin, bstylechar);
+        process_stream(stdin, bstylechar, sstyle);
     }
 
     return EXIT_SUCCESS;
 }
 
-void process_stream(FILE *fpntr, char bstylechar)
+void process_stream(FILE *fpntr, char bstylechar, char *sstyle)
 {
     char *line;
     static int count = 1;
@@ -91,10 +92,10 @@ void process_stream(FILE *fpntr, char bstylechar)
             switch (bstylechar)
             {
             case 'a':
-                printf("%6d\t%s\n", count, line);
+                printf("%6d\t%s%s\n", count, sstyle, line);
                 break;
             case 'n':
-                printf("%s%s\n", spacer, line);
+                printf("%s%s%s\n", spacer,sstyle, line);
                 break;
             case 't':
                 if (strcmp(line, "\n") == 0) // looks for empty lines
@@ -103,7 +104,7 @@ void process_stream(FILE *fpntr, char bstylechar)
                     count--;
                 }
                 else
-                    printf("%6d\t%s\n", count, line);
+                    printf("%6d\t%s%s\n", count, sstyle, line);
                 break;
             }
             count++;

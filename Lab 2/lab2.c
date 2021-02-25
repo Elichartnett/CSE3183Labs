@@ -131,12 +131,11 @@ char *fgetline(int fd) // FRESH MEMORY IS TO BE ALLOCATED FOR EACH LINE
         buff[pos++] = next;
     }
 
-    buff[pos] = '\0'; // makes buff a valid C string of correct length
-
     if (next == EOF && pos == 0) // handles non-newline terminated files
     {
         return NULL;
     }
+    buff[pos] = '\0'; // makes buff a valid C string of correct length
     return buff;
 }
 

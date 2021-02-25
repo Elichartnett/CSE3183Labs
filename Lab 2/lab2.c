@@ -58,13 +58,17 @@ int main(int argc, char *argv[])
         firstfile = optind;
     }
 
+    bool error = false;
     if (argc > firstfile) // file(s) supplied + maybe b option
     {
         for (int i = firstfile; i < argc; i++)
         {
             int fd;
             if ((fd = open(argv[i], O_RDONLY)) == -1)
+            {
                 fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i], strerror(errno));
+                error = true;
+            }
             else
             {
                 process_stream(fd, bstylechar, sstyle);
@@ -78,6 +82,9 @@ int main(int argc, char *argv[])
         process_stream(0, bstylechar, sstyle);
     }
 
+    if (error)
+        return EXIT_FAILURE;
+
     return EXIT_SUCCESS;
 }
 
@@ -89,34 +96,32 @@ void process_stream(int fd, char bstylechar, char *sstyle)
 
     while ((line = fgetline(fd)) != NULL)
     {
+        switch (bstylechar)
         {
-            switch (bstylechar)
+        case 'a':
+            printf("%6d\t%s%s\n", count++, sstyle, line);
+            break;
+        case 'n':
+            printf("%*s%s%s\n", spacer, " ", sstyle, line);
+            break;
+        case 't':
+            if (strcmp(line, "") == 0) // looks for empty lines
             {
-            case 'a':
-                printf("%6d\t%s%s\n", count, sstyle, line);
-                break;
-            case 'n':
-                printf("%*s%s%s\n", spacer, " ",sstyle, line);
-                break;
-            case 't':
-                if (strcmp(line, "") == 0) // looks for empty lines
-                {
-                    printf("%*s\n", spacer, "");
-                }
-                else
-                    printf("%6d\t%s%s\n", count, sstyle, line);
-                break;
-            default:
-              fprintf(stderr, "Error: invalid value specified\n");
-              exit(EXIT_FAILURE);         
+                printf("%*s\n", spacer, "");
             }
+            else
+                printf("%6d\t%s%s\n", count++, sstyle, line);
+            break;
+        default:
+            fprintf(stderr, "Error: invalid value specified\n");
+            exit(EXIT_FAILURE);
         }
     }
 }
 
 char *fgetline(int fd)
 {
-    static char buff[MAX_LINE_LENGTH + 2];
+    static char buff[MAX_LINE_LENGTH + 1];
 
     int next;
     int pos = 0;
@@ -124,7 +129,7 @@ char *fgetline(int fd)
     {
         buff[pos++] = next;
     }
-   
+
     buff[pos] = '\0'; // makes buff a valid C string of correct length
 
     if (next == EOF && pos == 0) // handles non-newline terminated files
@@ -139,9 +144,12 @@ int fgetchar(int fd)
     int letter = 0;
     int fd_read = read(fd, &letter, 1);
 
+    if (fd_read == 0)
+        return EOF;
+
     if (fd_read == -1)
     {
-        printf("error");
+        printf("Error reading file.");
     }
 
     return letter;

@@ -120,7 +120,7 @@ char *fgetline(int fd)
 
     int next;
     int pos = 0;
-    while ((next = fgetchar(fd)) != '\n' && next != 0)
+    while ((next = fgetchar(fd)) != '\n' && next != EOF)
     {
         buff[pos++] = next;
     }

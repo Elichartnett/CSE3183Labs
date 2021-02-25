@@ -85,7 +85,7 @@ void process_stream(int fd, char bstylechar, char *sstyle)
 {
     char *line;
     static int count = 1;
-    char *spacer = 6 + strlen("\t"); // gets correct nl spacing when not numbering a line
+    int spacer = 6 + strlen("\t"); // gets correct nl spacing when not numbering a line
 
     while ((line = fgetline(fd)) != NULL)
     {
@@ -107,7 +107,7 @@ void process_stream(int fd, char bstylechar, char *sstyle)
                     printf("%6d\t%s%s\n", count, sstyle, line);
                 break;
             default:
-              printf(stderr, "Error: invalid value specified\n");
+              fprintf(stderr, "Error: invalid value specified\n");
               exit(EXIT_FAILURE);         
             }
         }
@@ -120,7 +120,7 @@ char *fgetline(int fd)
 
     int next;
     int pos = 0;
-    while ((next = fgetchar(fd)) != '\n' && next != EOF)
+    while ((next = fgetchar(fd)) != '\n' && next != 0)
     {
         buff[pos++] = next;
     }

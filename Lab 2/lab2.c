@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
+#define FILE_BUFF_SIZE 512
 #define INIT_BUFF_SIZE 50
 #define INC_BUFF_SIZE 10
 

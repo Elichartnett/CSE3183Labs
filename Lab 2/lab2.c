@@ -10,7 +10,8 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
-#define MAX_LINE_LENGTH 100
+#define INIT_BUFF_SIZE 50
+#define INC_BUFF_SIZE 10
 
 // Prototypes:
 void process_stream(int fd, char bstylechar, char *sstyle);
@@ -119,9 +120,9 @@ void process_stream(int fd, char bstylechar, char *sstyle)
     }
 }
 
-char *fgetline(int fd)
-{
-    static char buff[MAX_LINE_LENGTH + 1];
+char *fgetline(int fd) // FRESH MEMORY IS TO BE ALLOCATED FOR EACH LINE
+{                      // DYNAMIC MEMORY - MALLOC, REALLOC, FREE
+    static char buff[101];
 
     int next;
     int pos = 0;
@@ -139,7 +140,7 @@ char *fgetline(int fd)
     return buff;
 }
 
-int fgetchar(int fd)
+int fgetchar(int fd) // NEEDS BUFFER VARIABLE THAT IS SET TO READS RETURN VALUE TO SEE HOW FAR IT READ
 {
     int letter = 0;
     int fd_read = read(fd, &letter, 1);

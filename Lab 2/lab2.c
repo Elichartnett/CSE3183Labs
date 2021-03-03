@@ -1,6 +1,6 @@
-// Team: Eli Hartnett (ech364) and Tara Broome (tb2120)
+// Name: Eli Hartnett (ech364)
 // compile: gcc -Wall -std=c99 -o lab2 lab2.c
-// valid calls: ./lab1 [style] <filename(s)> or ./lab1 [style] or ./lab1 <filename(s)> or ./lab1
+// valid calls: ./lab1 [styles] <filename(s)> or ./lab2 [styles] or ./lab2 <filename(s)> or ./lab2
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
-#define FILE_BUFF_SIZE 512
-#define INIT_BUFF_SIZE 50
-#define INC_BUFF_SIZE 10
+#define FILE_BUFF_SIZE 10 //512
+#define INIT_BUFF_SIZE 5 //50
+#define INC_BUFF_SIZE 1 //10
 
 // Prototypes:
 void process_stream(int fd, char bstylechar, char *sstyle);
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     }
 
     bool error = false;
-    if (argc > firstfile) // file(s) supplied + maybe b option
+    if (argc > firstfile) //handles option(s) and files
     {
         for (int i = firstfile; i < argc; i++)
         {
@@ -94,64 +94,72 @@ void process_stream(int fd, char bstylechar, char *sstyle)
 {
     char *line;
     static int count = 1;
-    int spacer = 6 + strlen("\t"); // gets correct nl spacing when not numbering a line
+    int spacer = 6 + strlen("\t");
 
     while ((line = fgetline(fd)) != NULL)
     {
-        switch (bstylechar)
+        switch (bstylechar) //output
         {
         case 'a':
-            printf("%6d\t%s%s\n", count++, sstyle, line);
+            printf("%6d%s%s\n", count++, sstyle, line);
             break;
         case 'n':
             printf("%*s%s%s\n", spacer, " ", sstyle, line);
             break;
         case 't':
-            if (strcmp(line, "") == 0) // looks for empty lines
+            if (strcmp(line, "") == 0)
             {
                 printf("%*s\n", spacer, "");
             }
             else
-                printf("%6d\t%s%s\n", count++, sstyle, line);
+                printf("%6d%s%s\n", count++, sstyle, line);
             break;
-        default:
-            fprintf(stderr, "Error: invalid value specified\n");
-            exit(EXIT_FAILURE);
         }
     }
 }
 
-char *fgetline(int fd) // FRESH MEMORY IS TO BE ALLOCATED FOR EACH LINE
-{                      // DYNAMIC MEMORY - MALLOC, REALLOC, FREE
-    static char buff[101];
+char *fgetline(int fd)
+{
+    char *line_buff = malloc(FILE_BUFF_SIZE + 1);
+    size_t buff_size = FILE_BUFF_SIZE;
+    int buff_pos = 0, next_char;
 
-    int next;
-    int pos = 0;
-    while ((next = fgetchar(fd)) != '\n' && next != EOF)
+    while ((next_char = fgetchar(fd)) != '\n' && next_char != EOF)
     {
-        buff[pos++] = next;
+        if (buff_pos == buff_size)
+        {
+            line_buff = realloc(line_buff, buff_size + INC_BUFF_SIZE); // what about error checking
+            buff_size += INC_BUFF_SIZE;
+        }
+        line_buff[buff_pos++] = next_char;
     }
 
-    if (next == EOF && pos == 0) // handles non-newline terminated files
+    if (next_char == EOF && (buff_pos == 0 || errno))
     {
+        free(line_buff);
         return NULL;
     }
-    buff[pos] = '\0'; // makes buff a valid C string of correct length
-    return buff;
+    line_buff[buff_pos] = '\0';
+    return line_buff;
 }
 
-int fgetchar(int fd) // NEEDS BUFFER VARIABLE THAT IS SET TO READS RETURN VALUE TO SEE HOW FAR IT READ
+int fgetchar(int fd)
 {
-    int letter = 0;
-    int fd_read = read(fd, &letter, 1);
+    static char buff[FILE_BUFF_SIZE];
+    static int chars_left = 0;
+    static int pos;
+    int nread;
 
-    if (fd_read == 0)
-        return EOF;
-
-    if (fd_read == -1)
+    if (chars_left == 0)
     {
-        printf("Error reading file.");
+        if ((nread = read(fd, buff, FILE_BUFF_SIZE)) <= 0)
+        {
+            return EOF;
+        }
+        chars_left = nread;
+        pos = 0;
     }
 
-    return letter;
+    chars_left--;
+    return buff[pos++];
 }

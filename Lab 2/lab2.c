@@ -11,8 +11,8 @@
 #include <fcntl.h>
 
 #define FILE_BUFF_SIZE 10 //512
-#define INIT_BUFF_SIZE 5 //50
-#define INC_BUFF_SIZE 1 //10
+#define INIT_BUFF_SIZE 5  //50
+#define INC_BUFF_SIZE 1   //10
 
 // Prototypes:
 void process_stream(int fd, char bstylechar, char *sstyle);
@@ -128,8 +128,10 @@ char *fgetline(int fd)
     {
         if (buff_pos == buff_size)
         {
-            line_buff = realloc(line_buff, buff_size + INC_BUFF_SIZE); // what about error checking
-            buff_size += INC_BUFF_SIZE;
+            if ((line_buff = realloc(line_buff, buff_size + INC_BUFF_SIZE)) != NULL)
+                buff_size += INC_BUFF_SIZE;
+            else
+                exit(EXIT_FAILURE);
         }
         line_buff[buff_pos++] = next_char;
     }

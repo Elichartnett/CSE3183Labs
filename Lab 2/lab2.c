@@ -115,12 +115,13 @@ void process_stream(int fd, char bstylechar, char *sstyle)
                 printf("%6d%s%s\n", count++, sstyle, line);
             break;
         }
+        free(line);
     }
 }
 
 char *fgetline(int fd)
 {
-    char *line_buff = malloc(FILE_BUFF_SIZE + 1);
+    char *line_buff = malloc(INIT_BUFF_SIZE + 1);
     size_t buff_size = FILE_BUFF_SIZE;
     int buff_pos = 0, next_char;
 

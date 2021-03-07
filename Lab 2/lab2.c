@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
-#define FILE_BUFF_SIZE 10 //512
-#define INIT_BUFF_SIZE 5  //50
-#define INC_BUFF_SIZE 1   //10
+#define FILE_BUFF_SIZE 512
+#define INIT_BUFF_SIZE 50
+#define INC_BUFF_SIZE 10
 
 // Prototypes:
 void process_stream(int fd, char bstylechar, char *sstyle);
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-void process_stream(int fd, char bstylechar, char *sstyle)
+void process_stream(int fd, char bstylechar, char *sstyle) // prints files until null (returned when eof)
 {
     char *line;
     static int count = 1;
@@ -98,7 +98,7 @@ void process_stream(int fd, char bstylechar, char *sstyle)
 
     while ((line = fgetline(fd)) != NULL)
     {
-        switch (bstylechar) //output
+        switch (bstylechar)
         {
         case 'a':
             printf("%6d%s%s\n", count++, sstyle, line);
@@ -122,13 +122,15 @@ void process_stream(int fd, char bstylechar, char *sstyle)
 char *fgetline(int fd)
 {
     char *line_buff = malloc(INIT_BUFF_SIZE + 1);
-    size_t buff_size = FILE_BUFF_SIZE;
+    size_t buff_size = INIT_BUFF_SIZE;
     int buff_pos = 0, next_char;
 
-    while ((next_char = fgetchar(fd)) != '\n' && next_char != EOF)
+    while ((next_char = fgetchar(fd)) != '\n' && next_char != EOF) // gets one line at a time without a cap
     {
         if (buff_pos == buff_size)
         {
+            printf("%s", "calling realloc");
+            getchar();
             if ((line_buff = realloc(line_buff, buff_size + INC_BUFF_SIZE)) != NULL)
                 buff_size += INC_BUFF_SIZE;
             else
@@ -146,7 +148,7 @@ char *fgetline(int fd)
     return line_buff;
 }
 
-int fgetchar(int fd)
+int fgetchar(int fd) // optimizes reading by doing it in chunks rather than many sys calls
 {
     static char buff[FILE_BUFF_SIZE];
     static int chars_left = 0;

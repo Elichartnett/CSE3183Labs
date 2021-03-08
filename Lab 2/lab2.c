@@ -129,8 +129,6 @@ char *fgetline(int fd)
     {
         if (buff_pos == buff_size)
         {
-            printf("%s", "calling realloc");
-            getchar();
             if ((line_buff = realloc(line_buff, buff_size + INC_BUFF_SIZE)) != NULL)
                 buff_size += INC_BUFF_SIZE;
             else

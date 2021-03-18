@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 void run_command_in_subprocess(char *file, char *argv_new[4]);
 //??? printout_terminated_subprocess(int status, ???);
@@ -42,16 +43,15 @@ int main(int argc, char *argv[])
 
                 running++;
                 run_command_in_subprocess(argv_new[2], argv_new);
+                sleep(3);
             }
             else
             {
-                printf("Waiting...");
+                printf("waiting\n");
                 wait(NULL);
-                printf("done waiting!\n");
                 running--;
             }
         }
-        wait(NULL); //collect last process
 
         return EXIT_SUCCESS;
     }
@@ -66,12 +66,12 @@ void run_command_in_subprocess(char *file, char *argv_new[4])
         perror("Fork failed");
         exit(EXIT_FAILURE);
 
-    case 0:
+    case 0: //child process
         printf("%s%d\n", "Child: ", (int)getpid());
         execvp(argv_new[0], argv_new);
         exit(EXIT_FAILURE);
 
-    default:
+    default: //parent process
         printf("%s%d\n", "Parent: ", (int)getpid());
         break;
     }

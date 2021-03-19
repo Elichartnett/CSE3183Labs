@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-void run_command_in_subprocess(char *file, char *argv_new[4]);
-//??? printout_terminated_subprocess(int status, ???);
+int run_command_in_subprocess(char *file, char *argv_new[4]);
+void printout_terminated_subprocess(int pfds, char *file_name);
 
 int main(int argc, char *argv[])
 {
@@ -31,9 +31,13 @@ int main(int argc, char *argv[])
         }
 
         int running = 0;
-        while (first_file < argc) //makes sure all files run
+        int num_files = argc - first_file;
+        int pfds[num_files];
+        int file_num = 0;
+        int num_printed = 0;
+        while (file_num < num_files)
         {
-            if (running < num_cores) //limit number of files running in parallel
+            if (running < num_cores)
             {
                 char *argv_new[4];
                 argv_new[0] = command;
@@ -42,37 +46,58 @@ int main(int argc, char *argv[])
                 argv_new[3] = NULL;
 
                 running++;
-                run_command_in_subprocess(argv_new[2], argv_new);
-                sleep(3);
+                pfds[file_num++] = run_command_in_subprocess(argv_new[2], argv_new);
             }
             else
             {
-                printf("waiting\n");
                 wait(NULL);
                 running--;
+                printout_terminated_subprocess(pfds[num_printed], argv[argc - num_files + num_printed]);
+                num_printed++;
             }
         }
 
-        return EXIT_SUCCESS;
+        if (running > 0)
+        {
+            for (int i = 0; i < running; i++)
+            {
+                wait(NULL);
+                printout_terminated_subprocess(pfds[num_printed], argv[argc - num_files + num_printed]);
+                num_printed++;
+            }
+        }
     }
+    return EXIT_SUCCESS;
 }
 
-void run_command_in_subprocess(char *file, char *argv_new[4])
+int run_command_in_subprocess(char *file, char *argv_new[4])
 {
-    int pid = fork();
-    switch (pid)
+    int pfds[2];
+    pipe(pfds); //NEED TO ERROR CHECK
+    switch (fork())
     {
     case -1:
         perror("Fork failed");
         exit(EXIT_FAILURE);
 
-    case 0: //child process
-        printf("%s%d\n", "Child: ", (int)getpid());
+    case 0:               //child process
+        dup2(pfds[1], 1); // fd 1 is standard output - redirects to pipe write end (pfds[1])
         execvp(argv_new[0], argv_new);
         exit(EXIT_FAILURE);
 
     default: //parent process
-        printf("%s%d\n", "Parent: ", (int)getpid());
+        return pfds[0];
         break;
     }
+}
+
+void printout_terminated_subprocess(int pfds, char *file_name)
+{
+    printf("--------------------\n");
+    printf("%s%s\n", "Output from: ", file_name);
+    printf("--------------------\n");
+
+    char buff[4096];
+    int nread = read(pfds, buff, 4096);
+    write(1, buff, nread);
 }

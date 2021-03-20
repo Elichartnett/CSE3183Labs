@@ -73,22 +73,31 @@ int main(int argc, char *argv[])
 int run_command_in_subprocess(char *file, char *argv_new[4])
 {
     int pfds[2];
-    pipe(pfds); //NEED TO ERROR CHECK
-    switch (fork())
+    if (pipe(pfds) == -1)
     {
-    case -1:
-        perror("Fork failed");
-        exit(EXIT_FAILURE);
-
-    case 0:               //child process
-        dup2(pfds[1], 1); // fd 1 is standard output - redirects to pipe write end (pfds[1])
-        execvp(argv_new[0], argv_new);
-        exit(EXIT_FAILURE);
-
-    default: //parent process
-        return pfds[0];
-        break;
+        //error creating pipe
     }
+    else
+    {
+        switch (fork())
+        {
+        case -1:
+            perror("Fork failed");
+            exit(EXIT_FAILURE);
+
+        case 0: //child process
+            //close(pipe(&pfds[0]));
+            dup2(pfds[1], 1); //fd 1 is standard output - redirects to pipe write end (pfds[1])
+            execvp(argv_new[0], argv_new);
+            exit(EXIT_FAILURE);
+
+        default: //parent process
+            //close(pipe(&pfds[1]));
+            return pfds[0];
+            break;
+        }
+    }
+    return pfds[0];
 }
 
 void printout_terminated_subprocess(int pfds, char *file_name)

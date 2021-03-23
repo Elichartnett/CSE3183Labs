@@ -13,7 +13,7 @@
 #define F_GETFL 3
 
 int run_command_in_subprocess(char *argv_new[4], int pipe[]);
-void printout_terminated_subprocess(char *file_name, int rpipe);
+int printout_terminated_subprocess(char *file_name, int rpipe, int errors);
 
 int main(int argc, char *argv[])
 {
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
                     {
                         if (pid == pipes[i][2])
                         {
-                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                            errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
                             break;
                         }
                     }
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
                     {
                         if (pid == pipes[i][2])
                         {
-                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                            errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
                             break;
                         }
                     }
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
                 {
                     if (pid == pipes[i][2])
                     {
-                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
                         break;
                     }
                 }
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
                 {
                     if (pid == pipes[i][2])
                     {
-                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
                         break;
                     }
                 }
@@ -167,7 +167,7 @@ int run_command_in_subprocess(char *argv_new[4], int pipe[])
     }
 }
 
-void printout_terminated_subprocess(char *file_name, int rpipe)
+int printout_terminated_subprocess(char *file_name, int rpipe, int errors)
 {
     printf("--------------------\n");
     printf("%s%s\n", "Output from: ", file_name);
@@ -179,15 +179,13 @@ void printout_terminated_subprocess(char *file_name, int rpipe)
         write(1, buff, nread);
     if (nread < 0)
     {
+        errors = 1;
         fflush(stdout);
         if (errno == EAGAIN)
-        {
             printf("Child had no output\n");
-        }
 
         else
-        {
             printf("Error reading pipe\n");
-        }
     }
+    return errors;
 }

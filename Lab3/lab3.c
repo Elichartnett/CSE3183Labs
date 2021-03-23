@@ -12,7 +12,7 @@
 #define F_GETFL 3
 #define O_NONBLOCK 0x00000004
 
-void run_command_in_subprocess(char *argv_new[4], int pipe[]);
+int run_command_in_subprocess(char *argv_new[4], int pipe[]);
 void printout_terminated_subprocess(char *file_name, int rpipe);
 
 int main(int argc, char *argv[])
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         argv_new[3] = NULL;
 
         char *option = NULL;
-        if (strcmp(argv[3], "_files_") != 0) //command has -option
+        if (strcmp(argv[3], "_files_") != 0) //Command has -option
         {
             option = argv[3];
             first_file++;
@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
         int file_num = 0;
         int num_files = argc - first_file;
         int running = 0;
-        int pipes[num_files][2]; //index 0: read pipe fd, index 1: write pipe fd
-        int num_printed = 0;
+        int pipes[num_files][3]; //Index 0: process id, index 1: read pipe fd, index 2: write pipe fd
+        int pfds[2];
 
         while (file_num < num_files)
         {
@@ -65,43 +65,32 @@ int main(int argc, char *argv[])
                     argv_new[2] = NULL;
                 }
 
-                pipe(pipes[file_num]); // need to error check
-                fcntl(pipes[file_num][0], F_SETFL, fcntl(pipes[file_num][0], F_GETFL) | O_NONBLOCK);
-                fcntl(pipes[file_num][1], F_SETFL, fcntl(pipes[file_num][1], F_GETFL) | O_NONBLOCK);
+                pipe(pfds); // need to error check
+                fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
+                fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
 
-                run_command_in_subprocess(argv_new, pipes[file_num]);
+                pipes[file_num][1] = pfds[0];
+                pipes[file_num][2] = pfds[1];
+
+                pipes[file_num][0] = run_command_in_subprocess(argv_new, pipes[file_num]);
 
                 running++;
                 first_file++;
                 file_num++;
             }
-            else //first clean up function runs when cores are full (EX: num_cores = 1 and num_files = 3)
+            else //First clean up function runs when cores are full to open up more space (EX: num_cores = 1 and num_files = 3)
             {
                 int status = 0;
                 int pid = wait(&status);
-                printf("Got: %d\n", pid);
+                running--;
                 if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
                 {
-                    for (int i = 0; running >= num_cores; i++)
+                    for (int i = 0; i < num_files; i++)
                     {
-                        char scurr_pid[6];
-                        int nread = read(pipes[i][0], scurr_pid, 5); //switch to findind delimeter not 5 chars
+                        if (pid == pipes[i][0])
                         {
-                            if (nread != -1)
-                            {
-                                int curr_pid = atoi(scurr_pid);
-                                printf("Read: %d\n", curr_pid);
-                                if (curr_pid == pid)
-                                {
-                                    printout_terminated_subprocess(argv[argc - num_files + num_printed], pipes[i][0]); //FIX - need data structure mapping PID to pipe
-                                    num_printed++;
-                                    running--;
-                                }
-                                else
-                                {
-                                    lseek(pipes[i][0], 0, SEEK_SET);
-                                }
-                            }
+                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][1]);
+                            break;
                         }
                     }
                 }
@@ -109,40 +98,27 @@ int main(int argc, char *argv[])
                     errors = 1;
             }
         }
-        if (running > 0) //Second clean up function runs when max num of cores is not reached (EX: num_cores = 3, num_files = 2)
+
+        while (running > 0) //Second clean up function runs if cores do not over flow (EX: num_cores = 3 and num_files = 3)
         {
-            for (int i = 0; i < running; i++)
+            int status = 0;
+            int pid = wait(&status);
+            running--;
+            if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
             {
-                int status = 0;
-                int pid = wait(&status);
-                printf("Got: %d\n", pid);
-                if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
+                for (int i = 0; i < num_files; i++)
                 {
-                    for (int i = 0; running > 0; i++)
+                    if (pid == pipes[i][0])
                     {
-                        char scurr_pid[6];
-                        int nread = read(pipes[i][0], scurr_pid, 5); //switch to findind delimeter not 5 chars
-                        {
-                            if (nread != -1)
-                            {
-                                int curr_pid = atoi(scurr_pid);
-                                printf("Read: %d\n", curr_pid);
-                                if (curr_pid == pid)
-                                {
-                                    printout_terminated_subprocess(argv[argc - num_files + num_printed], pipes[i][0]); //FIX - need data structure mapping PID to pipe
-                                    num_printed++;
-                                    running--;
-                                }
-                                else
-                                {
-                                    lseek(pipes[i][0], 0, SEEK_SET);
-                                }
-                            }
-                        }
+                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][1]);
+                        break;
                     }
                 }
-                else
-                    errors = 1;
+            }
+            else
+            {
+                printf("Error with exit status\n");
+                errors = 1;
             }
         }
     }
@@ -152,28 +128,24 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
 }
 
-void run_command_in_subprocess(char *argv_new[4], int pipe[])
+int run_command_in_subprocess(char *argv_new[4], int pipe[])
 {
-    switch (fork())
+    int pid = fork();
+    switch (pid)
     {
     case -1:
         perror("Fork failed");
         exit(EXIT_FAILURE);
 
-    case 0: //child process
-        close(pipe[0]);
-        dup2(pipe[1], 1); //fd 1 is standard output - redirects to pipe write end (pfds[1])
-        char pid[6];
-        int length = sprintf(pid, "%d", getpid());
-        write(pipe[1], pid, length);
-
+    case 0:               //Child process
+        close(pipe[1]);   //Closing read end (this pipe has 3 indexes: pid, read fd, write fd)
+        dup2(pipe[2], 1); //Fd 1 is standard output - redirects to pipe write end (pfds[1])
         execvp(argv_new[0], argv_new);
         exit(EXIT_FAILURE);
 
-    default: //parent process
-        printf("%d\n", getpid());
-        close(pipe[1]);
-        break;
+    default:            //Parent process
+        close(pipe[2]); //closing write end (this pipe has 3 indexes: pid, read fd, write fd)
+        return pid;
     }
 }
 

@@ -11,7 +11,6 @@
 
 #define F_SETFL 4
 #define F_GETFL 3
-#define O_NONBLOCK 0x00000004
 
 int run_command_in_subprocess(char *argv_new[4], int pipe[]);
 void printout_terminated_subprocess(char *file_name, int rpipe);

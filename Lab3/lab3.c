@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <sys/errno.h>
 
 #define F_SETFL 4
 #define F_GETFL 3
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
         int file_num = 0;
         int num_files = argc - first_file;
         int running = 0;
-        int pipes[num_files][3]; //Index 0: process id, index 1: read pipe fd, index 2: write pipe fd
+        int pipes[num_files][3]; //Index 0: read pipe fd, index 1: write pipe fd, index 2: process id
         int pfds[2];
 
         while (file_num < num_files)
@@ -69,10 +70,10 @@ int main(int argc, char *argv[])
                 fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
                 fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
 
-                pipes[file_num][1] = pfds[0];
-                pipes[file_num][2] = pfds[1];
+                pipes[file_num][0] = pfds[0];
+                pipes[file_num][1] = pfds[1];
 
-                pipes[file_num][0] = run_command_in_subprocess(argv_new, pipes[file_num]);
+                pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
 
                 running++;
                 first_file++;
@@ -87,15 +88,25 @@ int main(int argc, char *argv[])
                 {
                     for (int i = 0; i < num_files; i++)
                     {
-                        if (pid == pipes[i][0])
+                        if (pid == pipes[i][2])
                         {
-                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][1]);
+                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
                             break;
                         }
                     }
                 }
                 else
+                {
+                    for (int i = 0; i < num_files; i++)
+                    {
+                        if (pid == pipes[i][2])
+                        {
+                            printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                            break;
+                        }
+                    }
                     errors = 1;
+                }
             }
         }
 
@@ -108,16 +119,23 @@ int main(int argc, char *argv[])
             {
                 for (int i = 0; i < num_files; i++)
                 {
-                    if (pid == pipes[i][0])
+                    if (pid == pipes[i][2])
                     {
-                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][1]);
+                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
                         break;
                     }
                 }
             }
             else
             {
-                printf("Error with exit status\n");
+                for (int i = 0; i < num_files; i++)
+                {
+                    if (pid == pipes[i][2])
+                    {
+                        printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0]);
+                        break;
+                    }
+                }
                 errors = 1;
             }
         }
@@ -137,14 +155,15 @@ int run_command_in_subprocess(char *argv_new[4], int pipe[])
         perror("Fork failed");
         exit(EXIT_FAILURE);
 
-    case 0:               //Child process
-        close(pipe[1]);   //Closing read end (this pipe has 3 indexes: pid, read fd, write fd)
-        dup2(pipe[2], 1); //Fd 1 is standard output - redirects to pipe write end (pfds[1])
+    case 0:
+        close(pipe[0]);   //Closing read end of child process
+        dup2(pipe[1], 1); //Fd 1 is standard output - redirects to pipe write end (pfds[1])
+        dup2(pipe[1], 2); //Fd 2 is standard error
         execvp(argv_new[0], argv_new);
         exit(EXIT_FAILURE);
 
-    default:            //Parent process
-        close(pipe[2]); //closing write end (this pipe has 3 indexes: pid, read fd, write fd)
+    default:
+        close(pipe[1]); //Closing right end of parent process
         return pid;
     }
 }
@@ -159,8 +178,17 @@ void printout_terminated_subprocess(char *file_name, int rpipe)
     int nread;
     while ((nread = read(rpipe, buff, 4096)) > 0)
         write(1, buff, nread);
-    if (nread == -1)
+    if (nread < 0)
     {
-        //FIX - see if there was an error while reading or just nothing to read
+        fflush(stdout);
+        if (errno == EAGAIN)
+        {
+            printf("Child had no output\n");
+        }
+
+        else
+        {
+            printf("Error reading pipe\n");
+        }
     }
 }

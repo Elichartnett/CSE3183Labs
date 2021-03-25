@@ -52,10 +52,8 @@ int main(int argc, char *argv[])
         {
             if (running >= num_cores) //Hit max number of cores in use
             {
-                printf("waiting\n");
                 int status = 0;
                 int pid = wait(&status);
-                sleep(1);
                 running--;
                 if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
                 {
@@ -103,8 +101,6 @@ int main(int argc, char *argv[])
                 pipes[file_num][0] = pfds[0];
                 pipes[file_num][1] = pfds[1];
 
-                printf("forking\n");
-                sleep(1);
                 pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
 
                 running++;
@@ -115,10 +111,8 @@ int main(int argc, char *argv[])
 
         while (running > 0) //Some processes may still be running if max number of cores was not reached - if max number of cores was reached, there will be num_cores processes still remaining
         {
-            printf("waiting\n");
             int status = 0;
             int pid = wait(&status);
-            sleep(1);
             running--;
             if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
             {

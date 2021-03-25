@@ -48,38 +48,11 @@ int main(int argc, char *argv[])
         int pipes[num_files][3]; //Index 0: read pipe fd, index 1: write pipe fd, index 2: process id
         int pfds[2];
 
-        while (file_num < num_files)
+        while (file_num < num_files || running > 0)
         {
-            if (running < num_cores)
+            if (running >= num_cores || running > 0)
             {
-                char *file = argv[first_file];
-
-                if (option != NULL)
-                {
-                    argv_new[1] = option;
-                    argv_new[2] = file;
-                }
-                else
-                {
-                    argv_new[1] = file;
-                    argv_new[2] = NULL;
-                }
-
-                pipe(pfds); // need to error check
-                fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
-                fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
-
-                pipes[file_num][0] = pfds[0];
-                pipes[file_num][1] = pfds[1];
-
-                pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
-
-                running++;
-                first_file++;
-                file_num++;
-            }
-            else //First clean up function runs when cores are full to open up more space (EX: num_cores = 1 and num_files = 3)
-            {
+                printf("waiting\n");
                 int status = 0;
                 int pid = wait(&status);
                 running--;
@@ -107,38 +80,37 @@ int main(int argc, char *argv[])
                     errors = 1;
                 }
             }
-        }
-
-        while (running > 0) //Second clean up function runs if cores do not over flow (EX: num_cores = 3 and num_files = 3)
-        {
-            int status = 0;
-            int pid = wait(&status);
-            running--;
-            if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
-            {
-                for (int i = 0; i < num_files; i++)
-                {
-                    if (pid == pipes[i][2])
-                    {
-                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
-                        break;
-                    }
-                }
-            }
             else
             {
-                for (int i = 0; i < num_files; i++)
+                char *file = argv[first_file];
+
+                if (option != NULL)
                 {
-                    if (pid == pipes[i][2])
-                    {
-                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
-                        break;
-                    }
+                    argv_new[1] = option;
+                    argv_new[2] = file;
                 }
-                errors = 1;
+                else
+                {
+                    argv_new[1] = file;
+                    argv_new[2] = NULL;
+                }
+
+                pipe(pfds); // need to error check
+                fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
+                fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
+
+                pipes[file_num][0] = pfds[0];
+                pipes[file_num][1] = pfds[1];
+
+                pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
+
+                running++;
+                first_file++;
+                file_num++;
             }
         }
     }
+
     if (errors == 0)
         return EXIT_SUCCESS;
     else
@@ -147,6 +119,7 @@ int main(int argc, char *argv[])
 
 int run_command_in_subprocess(char *argv_new[4], int pipe[])
 {
+    printf("forking\n");
     int pid = fork();
     switch (pid)
     {

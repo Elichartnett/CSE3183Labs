@@ -48,9 +48,9 @@ int main(int argc, char *argv[])
         int pipes[num_files][3]; //Index 0: read pipe fd, index 1: write pipe fd, index 2: process id
         int pfds[2];
 
-        while (file_num < num_files || running > 0)
+        while (file_num < num_files) //Makes sure every file is forked
         {
-            if (running >= num_cores || running > 0)
+            if (running >= num_cores) //Hit max number of cores in use
             {
                 printf("waiting\n");
                 int status = 0;
@@ -103,10 +103,42 @@ int main(int argc, char *argv[])
                 pipes[file_num][1] = pfds[1];
 
                 pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
+                printf("forking\n");
 
                 running++;
                 first_file++;
                 file_num++;
+            }
+        }
+
+        while (running > 0) //Some processes may still be running if max number of cores was not reached
+        {
+            printf("waiting\n");
+            int status = 0;
+            int pid = wait(&status);
+            running--;
+            if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
+            {
+                for (int i = 0; i < num_files; i++)
+                {
+                    if (pid == pipes[i][2])
+                    {
+                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < num_files; i++)
+                {
+                    if (pid == pipes[i][2])
+                    {
+                        errors = printout_terminated_subprocess(argv[argc - num_files + i], pipes[i][0], errors);
+                        break;
+                    }
+                }
+                errors = 1;
             }
         }
     }
@@ -119,7 +151,6 @@ int main(int argc, char *argv[])
 
 int run_command_in_subprocess(char *argv_new[4], int pipe[])
 {
-    printf("forking\n");
     int pid = fork();
     switch (pid)
     {

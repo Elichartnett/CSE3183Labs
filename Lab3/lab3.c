@@ -1,5 +1,6 @@
-// compile using gcc -Wall -o runpar lab3.c
-// call by ./runpar NUMCORES COMMAND... _files_ FILE...
+// Compile using gcc -Wall -o runpar lab3.c
+// Call by ./runpar NUMCORES COMMAND... _files_ FILE...
+// Create Xmb file with name tX for testing - dd if=/dev/urandom of=tX bs=1m count=X
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -94,18 +95,26 @@ int main(int argc, char *argv[])
                     argv_new[2] = NULL;
                 }
 
-                pipe(pfds); // need to error check
-                fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
-                fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
+                if (pipe(pfds) == -1) //Error making pipe results in file being skipped, but will attempt another piep on next file
+                {
+                    errors = 1;
+                    first_file++;
+                    file_num++;
+                }
+                else
+                {
+                    fcntl(pfds[0], F_SETFL, fcntl(pfds[0], F_GETFL) | O_NONBLOCK);
+                    fcntl(pfds[1], F_SETFL, fcntl(pfds[1], F_GETFL) | O_NONBLOCK);
 
-                pipes[file_num][0] = pfds[0];
-                pipes[file_num][1] = pfds[1];
+                    pipes[file_num][0] = pfds[0];
+                    pipes[file_num][1] = pfds[1];
 
-                pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
+                    pipes[file_num][2] = run_command_in_subprocess(argv_new, pipes[file_num]);
 
-                running++;
-                first_file++;
-                file_num++;
+                    running++;
+                    first_file++;
+                    file_num++;
+                }
             }
         }
 

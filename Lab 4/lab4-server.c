@@ -1,4 +1,5 @@
-// call using rempsd
+// gcc -Wall -o server lab4-server.c
+// ./server
 
 //create and set up listening tcp socket
 //go into an infinite loop accepting connections from clients
@@ -12,64 +13,140 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <pwd.h>
+
 #define port 3333
-#define secret CSE3183
+#define secret "CSE3183"
 
 void handle_client(int connect_fd);
 
 int main(int argc, char *argv[])
 {
-    char msg[201];
-    int listen_fd, connect_fd, nread;
+    int listen_fd, connect_fd;
     struct sockaddr_in servaddr;
 
-    listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int i = 1;
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i));
-
-    if (listen_fd == -1)
+    if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) //Creating socket
     {
-        printf("Socket failed\n");
+        perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
     else
-        printf("Socket success\n");
+    {
+        int i = 1;
+        if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0) //Setting socket option to reuse address
+            perror("Setting sockopt failed");
+    }
 
-    servaddr.sin_family = AF_INET;
+    servaddr.sin_family = AF_INET; //Setting up server port and address
     servaddr.sin_port = htons(port);
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
+    if (bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) //Binding socket to port and address
     {
-        perror("Binding failed\n");
+        perror("Binding failed");
         exit(EXIT_FAILURE);
     }
-    else
-        printf("Bind success\n");
 
-    if (listen(listen_fd, 10) != 0)
+    if (listen(listen_fd, 10) != 0) //Listening for connections
     {
-        printf("Listen failed\n");
+        printf("Listen failed");
         exit(EXIT_FAILURE);
     }
-    else
-        printf("Listen success\n");
 
     while (1)
     {
-        printf("Starting\n");
-        connect_fd = accept(listen_fd, (struct sockaddr *)NULL, NULL);
+        connect_fd = accept(listen_fd, (struct sockaddr *)NULL, NULL); //Client connected
         if (connect_fd < 0)
         {
-            printf("Accept failed\n");
+            perror("Connection failed");
             exit(EXIT_FAILURE);
         }
-
-        nread = read(connect_fd, msg, 200);
-        msg[nread] = '\0';
-        printf("%s", msg);
-
-        close(connect_fd);
+        else
+        {
+            handle_client(connect_fd);
+        }
     }
     return EXIT_SUCCESS;
+}
+
+void handle_client(int connect_fd)
+{
+    if (write(connect_fd, "<remps>", 7) < 0) //Step 1 of protocol: Send <remps>
+    {
+        perror("Write failed");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("1. Writing <remps>\n");
+    }
+
+    int nread;
+    char received_secret[strlen(secret) + 1];
+    if ((nread = read(connect_fd, received_secret, strlen(secret))) < 0) //Step 4 of protocol: Verify <shared secret>
+    {
+        perror("Read failed");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        received_secret[nread] = '\0';
+        if (strcmp(received_secret, secret) == 0)
+        {
+            printf("4. Recived <shared secret>\n");
+        }
+        else
+        {
+            printf("4. FAILED\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (write(connect_fd, "<ready>", 7) < 0) //Step 5 of protocol: Send <ready>
+    {
+        perror("Write failed");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("5. Writing <ready>\n");
+    }
+
+    char directive[57];
+    if ((nread = read(connect_fd, directive, 56)) < 0) //Step 8 of protocol: Get directive (user, cpu, or mem) //NOT SURE WHAT MAX NAME CAN BE
+    {
+        perror("Read failed");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        directive[nread] = '\0';
+        if ((strncmp(directive, "<user>", 6)) == 0) //Step 8: Directive is user
+        {
+            struct passwd *user_check = getpwnam(directive[6]);
+            if (user_check == NULL)
+            {
+                printf("8. FAILED\n");
+                exit(EXIT_FAILURE);
+            }
+            else
+                printf("8. Received <user>%s\n", directive[6]);
+        }
+        else if ((strcmp(directive, "<cpu>")) == 0) //Step 8: Directive is cpu
+        {
+            printf("cpu\n");
+            char command[100] = "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%cpu | head";
+        }
+        else if ((strcmp(directive, "<mem>")) == 0) //Step 8: Directive is mem
+        {
+            printf("mem\n");
+            char command[100] = "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%mem | head";
+        }
+        else
+        {
+            printf("NONE\n");
+        }
+    }
+
+    close(connect_fd);
 }

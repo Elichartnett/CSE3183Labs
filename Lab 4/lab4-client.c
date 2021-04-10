@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
     if (connect(sock_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
     {
         perror("connect() failed\n");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
 
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
     if ((nread = read(sock_fd, remps, 7)) < 0) //Protocol: Read <remps>
     {
         perror("Reading <remps> failed");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
     else
@@ -70,6 +72,7 @@ int main(int argc, char *argv[])
         remps[nread] = '\0';
         if (strcmp("<remps>", remps) != 0)
         {
+            close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
@@ -77,6 +80,7 @@ int main(int argc, char *argv[])
     if (write(sock_fd, secret, strlen(secret)) < 0) //Protocol: Write <shared secred>
     {
         perror("Writing <shared secret> failed\n");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
 
@@ -84,6 +88,7 @@ int main(int argc, char *argv[])
     if ((nread = read(sock_fd, ready, 7)) < 0) //Protocol: Read <ready>
     {
         perror("Reading <ready> failed\n");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
     else
@@ -91,6 +96,7 @@ int main(int argc, char *argv[])
         ready[nread] = '\0';
         if (strcmp("<ready>", ready) != 0)
         {
+            close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
@@ -105,6 +111,7 @@ int main(int argc, char *argv[])
         if (write(sock_fd, user, strlen(user)) < 0)
         {
             perror("Writing directive failed\n");
+            close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
@@ -113,6 +120,7 @@ int main(int argc, char *argv[])
         if (write(sock_fd, "<cpu>", 5) < 0)
         {
             perror("Writing directive failed\n");
+            close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
@@ -121,6 +129,7 @@ int main(int argc, char *argv[])
         if (write(sock_fd, "<mem>", 5) < 0)
         {
             perror("Writing directive failed\n");
+            close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
@@ -129,6 +138,7 @@ int main(int argc, char *argv[])
     if ((nread = read(sock_fd, output, 99)) < 0) //Print ps command output
     {
         perror("Reading failed");
+        close(sock_fd);
         exit(EXIT_FAILURE);
     }
 

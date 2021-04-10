@@ -1,10 +1,3 @@
-// gcc -Wall -o server lab4-server.c
-// ./server
-
-//create and set up listening tcp socket
-//go into an infinite loop accepting connections from clients
-//for each connection, call handle_client()
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -28,14 +21,14 @@ int main(int argc, char *argv[])
 
     if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) //Creating socket
     {
-        perror("Socket creation failed");
+        perror("socket() failed\n");
         exit(EXIT_FAILURE);
     }
     else
     {
         int i = 1;
         if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0) //Setting socket option to reuse address
-            perror("Setting sockopt failed");
+            perror("setsockopt() failed");
     }
 
     servaddr.sin_family = AF_INET; //Setting up server port and address
@@ -44,13 +37,15 @@ int main(int argc, char *argv[])
 
     if (bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) //Binding socket to port and address
     {
-        perror("Binding failed");
+        perror("bind() failed");
+        close(listen_fd);
         exit(EXIT_FAILURE);
     }
 
     if (listen(listen_fd, 10) != 0) //Listening for connections
     {
-        printf("Listen failed");
+        perror("listen() failed");
+        close(listen_fd);
         exit(EXIT_FAILURE);
     }
 
@@ -59,11 +54,13 @@ int main(int argc, char *argv[])
         connect_fd = accept(listen_fd, (struct sockaddr *)NULL, NULL); //Client connected
         if (connect_fd < 0)
         {
-            perror("Connection failed");
+            perror("accept() failed");
             exit(EXIT_FAILURE);
         }
         else
         {
+            dup2(connect_fd, 1);
+
             handle_client(connect_fd);
             close(connect_fd);
             printf("--------------------\n");
@@ -74,51 +71,44 @@ int main(int argc, char *argv[])
 
 void handle_client(int connect_fd)
 {
-    if (write(connect_fd, "<remps>", 7) < 0) //Step 1 of protocol: Send <remps>
+    if (write(connect_fd, "<remps>", 7) < 0) //Protocol: Send <remps>
     {
-        perror("Write failed");
+        perror("Writing <remps> failed\n");
+        close(connect_fd);
         exit(EXIT_FAILURE);
-    }
-    else
-    {
-        printf("1. Writing <remps>\n");
     }
 
     int nread;
     char received_secret[strlen(secret) + 1];
-    if ((nread = read(connect_fd, received_secret, strlen(secret))) < 0) //Step 4 of protocol: Verify <shared secret>
+    if ((nread = read(connect_fd, received_secret, strlen(secret))) < 0) //Protocol: Verify <shared secret>
     {
-        perror("Read failed");
+        perror("Reading <shared secret> failed\n");
+        close(connect_fd);
         exit(EXIT_FAILURE);
     }
     else
     {
         received_secret[nread] = '\0';
-        if (strcmp(received_secret, secret) == 0)
+        if (strcmp(received_secret, secret) != 0)
         {
-            printf("4. Recived <shared secret>\n");
-        }
-        else
-        {
-            printf("4. FAILED\n");
+            printf("Incorrect shared secret\n");
+            close(connect_fd);
             exit(EXIT_FAILURE);
         }
     }
 
-    if (write(connect_fd, "<ready>", 7) < 0) //Step 5 of protocol: Send <ready>
+    if (write(connect_fd, "<ready>", 7) < 0) //Protocol: Send <ready>
     {
-        perror("Write failed");
+        perror("Write <ready> failed\n");
+        close(connect_fd);
         exit(EXIT_FAILURE);
     }
-    else
-    {
-        printf("5. Writing <ready>\n");
-    }
 
-    char *directive = malloc(50);
-    if ((nread = read(connect_fd, directive, 56)) < 0) //Step 8 of protocol: Get directive (user, cpu, or mem) //NOT SURE WHAT MAX NAME CAN BE
+    char *directive = malloc(50); //NEED TO ADD DYNAMIC MEMORY
+    if ((nread = read(connect_fd, directive, 56)) < 0) //Protocol: Get directive (user, cpu, or mem)
     {
-        perror("Read failed");
+        perror("Reading directive (user, cpu, or mem) failed\n");
+        close(connect_fd);
         exit(EXIT_FAILURE);
     }
     else
@@ -131,22 +121,17 @@ void handle_client(int connect_fd)
             struct passwd *user_check = getpwnam(user_name);
             if (user_check == NULL)
             {
-                printf("8. FAILED\n");
+                printf("Invalid username\n");
+                close(connect_fd);
                 exit(EXIT_FAILURE);
             }
             else
             {
-                printf("8. Received <user>%s\n", user_name);
-
-                printf("9. Sending output to client\n");
-                dup2(connect_fd, 1);
-                dup2(connect_fd, 2);
-                char *command = malloc(100);
+                char *command = malloc(100); //NEED TO ADD MEMORY BASED ON DIRECTIVE LENGTH
                 strcat(command, "ps -u ");
                 strcat(command, user_name);
                 strcat(command, " -o pid,ppid,%cpu,%mem,args");
                 system(command);
-                dup2(1, connect_fd);
                 free(command);
             }
         }
@@ -159,7 +144,6 @@ void handle_client(int connect_fd)
             dup2(connect_fd, 2);
             char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%cpu | head";
             system(command);
-            dup2(1, connect_fd);
         }
         else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
         {
@@ -170,7 +154,6 @@ void handle_client(int connect_fd)
             dup2(connect_fd, 2);
             char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%mem | head";
             system(command);
-            dup2(1, connect_fd);
         }
     }
     free(directive);

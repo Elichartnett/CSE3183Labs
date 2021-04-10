@@ -135,7 +135,6 @@ int main(int argc, char *argv[])
     else
     {
         output[nread] = '\0';
-        printf("10. Output:\n");
         printf("%s\n", output);
     }
 

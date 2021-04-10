@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <pwd.h>
+#include <sys/wait.h>
 
 #define port 3333
 #define secret "CSE3183"
@@ -64,6 +65,7 @@ int main(int argc, char *argv[])
         else
         {
             handle_client(connect_fd);
+            printf("--------------------\n");
         }
     }
     return EXIT_SUCCESS;
@@ -124,13 +126,7 @@ void handle_client(int connect_fd)
 
         int pid = fork();
 
-        if (pid == -1)
-        {
-            perror("Fork failed\n");
-            exit(EXIT_FAILURE);
-        }
-        else if (pid == 0) //In child, run directive command
-        {
+
             if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
             {
 
@@ -146,7 +142,11 @@ void handle_client(int connect_fd)
 
                     printf("9. Sending output to client\n");
                     dup2(connect_fd, 1);
-                    execlp("ps", "ps -u", directive + 6, "-o pid, ppid, %cpu, %mem, args", NULL);
+                    dup2(connect_fd, 2);
+                    char *command = "ps -u ";
+                    strcat(command, directive+6);
+                    strcat(command, " -o pid ppid %cpu %mem args");
+                    system(command);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -156,7 +156,9 @@ void handle_client(int connect_fd)
 
                 printf("9. Sending output to client\n");
                 dup2(connect_fd, 1);
-                execlp("ps", "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%cpu | head");
+                dup2(connect_fd, 2);
+                char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%cpu | head";
+                system(command);
                 exit(EXIT_FAILURE);
             }
             else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
@@ -165,15 +167,16 @@ void handle_client(int connect_fd)
 
                 printf("9. Sending output to client\n");
                 dup2(connect_fd, 1);
-                execlp("ps", "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%mem | head");
+                dup2(connect_fd, 2);
+                char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%mem | head";
+                system(command);
                 exit(EXIT_FAILURE);
             }
         }
-        else //In parent
-        {
+
             wait(NULL); //NEED TO ERROR CHECK STATUS
             free(directive);
-        }
+        
     }
 
     close(connect_fd);

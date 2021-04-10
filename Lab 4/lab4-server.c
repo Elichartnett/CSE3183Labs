@@ -112,7 +112,7 @@ void handle_client(int connect_fd)
         printf("5. Writing <ready>\n");
     }
 
-    char directive[57];
+    char *directive = malloc(50);
     if ((nread = read(connect_fd, directive, 56)) < 0) //Step 8 of protocol: Get directive (user, cpu, or mem) //NOT SURE WHAT MAX NAME CAN BE
     {
         perror("Read failed");
@@ -121,30 +121,58 @@ void handle_client(int connect_fd)
     else
     {
         directive[nread] = '\0';
-        if ((strncmp(directive, "<user>", 6)) == 0) //Step 8: Directive is user
+
+        int pid = fork();
+
+        if (pid == -1)
         {
-            struct passwd *user_check = getpwnam(directive[6]);
-            if (user_check == NULL)
+            perror("Fork failed\n");
+            exit(EXIT_FAILURE);
+        }
+        else if (pid == 0) //In child, run directive command
+        {
+            if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
             {
-                printf("8. FAILED\n");
+
+                struct passwd *user_check = getpwnam(directive + 6);
+                if (user_check == NULL)
+                {
+                    printf("8. FAILED\n");
+                    exit(EXIT_FAILURE);
+                }
+                else
+                {
+                    printf("8. Received <user>%s\n", directive + 6);
+
+                    printf("9. Sending output to client\n");
+                    dup2(connect_fd, 1);
+                    execlp("ps", "ps -u", directive + 6, "-o pid, ppid, %cpu, %mem, args", NULL);
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if ((strcmp(directive, "<cpu>")) == 0) //Directive is cpu
+            {
+                printf("8. Received <cpu>:\n");
+
+                printf("9. Sending output to client\n");
+                dup2(connect_fd, 1);
+                execlp("ps", "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%cpu | head");
                 exit(EXIT_FAILURE);
             }
-            else
-                printf("8. Received <user>%s\n", directive[6]);
+            else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
+            {
+                printf("8. Received <mem>:\n");
+
+                printf("9. Sending output to client\n");
+                dup2(connect_fd, 1);
+                execlp("ps", "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%mem | head");
+                exit(EXIT_FAILURE);
+            }
         }
-        else if ((strcmp(directive, "<cpu>")) == 0) //Step 8: Directive is cpu
+        else //In parent
         {
-            printf("cpu\n");
-            char command[100] = "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%cpu | head";
-        }
-        else if ((strcmp(directive, "<mem>")) == 0) //Step 8: Directive is mem
-        {
-            printf("mem\n");
-            char command[100] = "ps -NT -o pid, ppid, %cpu, %mem, args --sort -%mem | head";
-        }
-        else
-        {
-            printf("NONE\n");
+            wait(NULL); //NEED TO ERROR CHECK STATUS
+            free(directive);
         }
     }
 

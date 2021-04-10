@@ -140,6 +140,20 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    char *output = malloc(100);
+    if ((nread = read(sock_fd, output, 99)) < 0) //Step 9 of protocol: Print ps command output
+    {
+        perror("Reading failed");
+        exit(EXIT_FAILURE);
+    }
+
+    else
+    {
+        output[nread] = '\0';
+        printf("10. Output:\n");
+        printf("%s\n", output);
+    }
+
     close(sock_fd);
 
     return EXIT_SUCCESS;

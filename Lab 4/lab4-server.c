@@ -127,7 +127,7 @@ void handle_client(int connect_fd)
 
         if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
         {
-            char *user_name = directive+6;
+            char *user_name = directive + 6;
             struct passwd *user_check = getpwnam(user_name);
             if (user_check == NULL)
             {
@@ -146,6 +146,7 @@ void handle_client(int connect_fd)
                 strcat(command, user_name);
                 strcat(command, " -o pid,ppid,%cpu,%mem,args");
                 system(command);
+                dup2(1, connect_fd);
                 free(command);
             }
         }
@@ -158,6 +159,7 @@ void handle_client(int connect_fd)
             dup2(connect_fd, 2);
             char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%cpu | head";
             system(command);
+            dup2(1, connect_fd);
         }
         else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
         {
@@ -168,6 +170,7 @@ void handle_client(int connect_fd)
             dup2(connect_fd, 2);
             char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%mem | head";
             system(command);
+            dup2(1, connect_fd);
         }
     }
     free(directive);

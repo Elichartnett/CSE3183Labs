@@ -1,8 +1,5 @@
-// gcc -Wall -o client lab4-client.c
-// ./client 127.0.0.1
-
 // call using remps SERVER_IP_ADDRESS [user | cpu | mem]
-// NEEDS TO ALSO HANDLE OPTION OF WHERE PS COMMAND RUNS ON SERVER
+
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,6 +27,11 @@ int main(int argc, char *argv[])
             style = 2;
         else if (strcmp(argv[2], "mem") == 0) //Option 3: mem
             style = 3;
+        else
+        {
+            printf("Usage: remps SERVER_IP_ADDRESS [user | cpu | mem]\n");
+            exit(EXIT_FAILURE);
+        }
     }
     else
     {
@@ -40,19 +42,27 @@ int main(int argc, char *argv[])
     int sock_fd;
     struct sockaddr_in servaddr;
 
-    sock_fd = socket(AF_INET, SOCK_STREAM, 0); //Creating socket for server //ERROR CHECK
+    if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) //Creating socket for server
+    {
+        perror("socket() failed\n");
+        exit(EXIT_FAILURE);
+    }
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
     servaddr.sin_addr.s_addr = inet_addr(server_ip);
 
-    connect(sock_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)); //Connecting to server //ERROR CHECK
+    if (connect(sock_fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
+    {
+        perror("connect() failed\n");
+        exit(EXIT_FAILURE);
+    }
 
     char remps[8];
     int nread;
-    if ((nread = read(sock_fd, remps, 7)) < 0) //Step 2 of protocol: Read <remps>
+    if ((nread = read(sock_fd, remps, 7)) < 0) //Protocol: Read <remps>
     {
-        perror("Read failed");
+        perror("Reading <remps> failed");
         exit(EXIT_FAILURE);
     }
     else
@@ -60,29 +70,20 @@ int main(int argc, char *argv[])
         remps[nread] = '\0';
         if (strcmp("<remps>", remps) != 0)
         {
-            printf("2. FAILED\n");
             exit(EXIT_FAILURE);
-        }
-        else
-        {
-            printf("2. Received <remps>\n");
         }
     }
 
-    if (write(sock_fd, secret, strlen(secret)) < 0) //Step 3 of protocol: Write <shared secred>
+    if (write(sock_fd, secret, strlen(secret)) < 0) //Protocol: Write <shared secred>
     {
-        perror("Write failed");
+        perror("Writing <shared secret> failed\n");
         exit(EXIT_FAILURE);
-    }
-    else
-    {
-        printf("3. Writing <shared secret>\n");
     }
 
     char ready[8];
-    if ((nread = read(sock_fd, ready, 7)) < 0) //Step 6 of protocol: Read <ready>
+    if ((nread = read(sock_fd, ready, 7)) < 0) //Protocol: Read <ready>
     {
-        perror("Reading failed");
+        perror("Reading <ready> failed\n");
         exit(EXIT_FAILURE);
     }
     else
@@ -90,16 +91,11 @@ int main(int argc, char *argv[])
         ready[nread] = '\0';
         if (strcmp("<ready>", ready) != 0)
         {
-            printf("6. FAILED\n");
             exit(EXIT_FAILURE);
-        }
-        else
-        {
-            printf("6. Received <ready>\n");
         }
     }
 
-    if (style == 1) //Step 7: Send user ps command
+    if (style == 1) // Send user ps command
     {
         char user[56] = "<user>";
         int uid = getuid();
@@ -108,40 +104,29 @@ int main(int argc, char *argv[])
 
         if (write(sock_fd, user, strlen(user)) < 0)
         {
-            perror("Write failed");
+            perror("Writing directive failed\n");
             exit(EXIT_FAILURE);
         }
-        else
-            printf("7. Writing %s\n", user);
     }
-    else if (style == 2) //Step 7: Send cpu ps command
+    else if (style == 2) //Send cpu ps command
     {
         if (write(sock_fd, "<cpu>", 5) < 0)
         {
-            perror("Write failed");
+            perror("Writing directive failed\n");
             exit(EXIT_FAILURE);
         }
-        else
-            printf("7. Writing <cpu>\n");
     }
-    else if (style == 3) //Step 7: Send mem ps command
+    else if (style == 3) //Send mem ps command
     {
         if (write(sock_fd, "<mem>", 5) < 0)
         {
-            perror("Write failed");
+            perror("Writing directive failed\n");
             exit(EXIT_FAILURE);
         }
-        else
-            printf("7. Writing <mem>\n");
-    }
-    else
-    {
-        printf("Invalid style\n");
-        exit(EXIT_FAILURE);
     }
 
-    char *output = malloc(100);
-    if ((nread = read(sock_fd, output, 99)) < 0) //Step 9 of protocol: Print ps command output
+    char *output = malloc(100); //NEED TO ADD DYNAMIC MEMORY
+    if ((nread = read(sock_fd, output, 99)) < 0) //Print ps command output
     {
         perror("Reading failed");
         exit(EXIT_FAILURE);

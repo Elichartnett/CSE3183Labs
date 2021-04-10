@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
         else
         {
             handle_client(connect_fd);
+            close(connect_fd);
             printf("--------------------\n");
         }
     }
@@ -126,8 +127,8 @@ void handle_client(int connect_fd)
 
         if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
         {
-
-            struct passwd *user_check = getpwnam(directive + 6);
+            char *user_name = directive+6;
+            struct passwd *user_check = getpwnam(user_name);
             if (user_check == NULL)
             {
                 printf("8. FAILED\n");
@@ -135,16 +136,17 @@ void handle_client(int connect_fd)
             }
             else
             {
-                printf("8. Received <user>%s\n", directive + 6);
+                printf("8. Received <user>%s\n", user_name);
 
                 printf("9. Sending output to client\n");
-                //dup2(connect_fd, 1);
-                //dup2(connect_fd, 2);
+                dup2(connect_fd, 1);
+                dup2(connect_fd, 2);
                 char *command = malloc(100);
-                command = "ps -u ";
-                strcat(command, directive + 6);
-                strcat(command, " -o pid ppid %cpu %mem args");
-                printf("%s\n", command);
+                strcat(command, "ps -u ");
+                strcat(command, user_name);
+                strcat(command, " -o pid,ppid,%cpu,%mem,args");
+                system(command);
+                free(command);
             }
         }
         else if ((strcmp(directive, "<cpu>")) == 0) //Directive is cpu
@@ -154,7 +156,7 @@ void handle_client(int connect_fd)
             printf("9. Sending output to client\n");
             dup2(connect_fd, 1);
             dup2(connect_fd, 2);
-            char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%cpu | head";
+            char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%cpu | head";
             system(command);
         }
         else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
@@ -164,11 +166,9 @@ void handle_client(int connect_fd)
             printf("9. Sending output to client\n");
             dup2(connect_fd, 1);
             dup2(connect_fd, 2);
-            char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%mem | head";
+            char *command = "ps -NT -o pid,ppid,%cpu,%mem,args --sort -%mem | head";
             system(command);
         }
     }
-
     free(directive);
-    close(connect_fd);
 }

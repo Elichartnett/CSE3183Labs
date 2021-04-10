@@ -124,60 +124,51 @@ void handle_client(int connect_fd)
     {
         directive[nread] = '\0';
 
-        int pid = fork();
+        if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
+        {
 
-
-            if ((strncmp(directive, "<user>", 6)) == 0) //Directive is user
+            struct passwd *user_check = getpwnam(directive + 6);
+            if (user_check == NULL)
             {
-
-                struct passwd *user_check = getpwnam(directive + 6);
-                if (user_check == NULL)
-                {
-                    printf("8. FAILED\n");
-                    exit(EXIT_FAILURE);
-                }
-                else
-                {
-                    printf("8. Received <user>%s\n", directive + 6);
-
-                    printf("9. Sending output to client\n");
-                    dup2(connect_fd, 1);
-                    dup2(connect_fd, 2);
-                    char *command = "ps -u ";
-                    strcat(command, directive+6);
-                    strcat(command, " -o pid ppid %cpu %mem args");
-                    system(command);
-                    exit(EXIT_FAILURE);
-                }
-            }
-            else if ((strcmp(directive, "<cpu>")) == 0) //Directive is cpu
-            {
-                printf("8. Received <cpu>:\n");
-
-                printf("9. Sending output to client\n");
-                dup2(connect_fd, 1);
-                dup2(connect_fd, 2);
-                char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%cpu | head";
-                system(command);
+                printf("8. FAILED\n");
                 exit(EXIT_FAILURE);
             }
-            else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
+            else
             {
-                printf("8. Received <mem>:\n");
+                printf("8. Received <user>%s\n", directive + 6);
 
                 printf("9. Sending output to client\n");
-                dup2(connect_fd, 1);
-                dup2(connect_fd, 2);
-                char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%mem | head";
-                system(command);
-                exit(EXIT_FAILURE);
+                //dup2(connect_fd, 1);
+                //dup2(connect_fd, 2);
+                char *command = malloc(100);
+                command = "ps -u ";
+                strcat(command, directive + 6);
+                strcat(command, " -o pid ppid %cpu %mem args");
+                printf("%s\n", command);
             }
         }
+        else if ((strcmp(directive, "<cpu>")) == 0) //Directive is cpu
+        {
+            printf("8. Received <cpu>:\n");
 
-            wait(NULL); //NEED TO ERROR CHECK STATUS
-            free(directive);
-        
+            printf("9. Sending output to client\n");
+            dup2(connect_fd, 1);
+            dup2(connect_fd, 2);
+            char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%cpu | head";
+            system(command);
+        }
+        else if ((strcmp(directive, "<mem>")) == 0) //Directive is mem
+        {
+            printf("8. Received <mem>:\n");
+
+            printf("9. Sending output to client\n");
+            dup2(connect_fd, 1);
+            dup2(connect_fd, 2);
+            char *command = "ps -NT -o pid ppid %cpu %mem args --sort -%mem | head";
+            system(command);
+        }
     }
 
+    free(directive);
     close(connect_fd);
 }

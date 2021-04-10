@@ -28,7 +28,10 @@ int main(int argc, char *argv[])
     {
         int i = 1;
         if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0) //Setting socket option to reuse address
+        {
             perror("setsockopt() failed");
+            exit(EXIT_FAILURE);
+        }
     }
 
     servaddr.sin_family = AF_INET; //Setting up server port and address
@@ -75,7 +78,6 @@ void handle_client(int connect_fd)
     {
         perror("Writing <remps> failed\n");
         close(connect_fd);
-        exit(EXIT_FAILURE);
     }
 
     int nread;
@@ -84,7 +86,6 @@ void handle_client(int connect_fd)
     {
         perror("Reading <shared secret> failed\n");
         close(connect_fd);
-        exit(EXIT_FAILURE);
     }
     else
     {
@@ -93,7 +94,6 @@ void handle_client(int connect_fd)
         {
             printf("Incorrect shared secret\n");
             close(connect_fd);
-            exit(EXIT_FAILURE);
         }
     }
 
@@ -101,15 +101,13 @@ void handle_client(int connect_fd)
     {
         perror("Write <ready> failed\n");
         close(connect_fd);
-        exit(EXIT_FAILURE);
     }
 
-    char *directive = malloc(50); //NEED TO ADD DYNAMIC MEMORY
+    char *directive = malloc(50);                      //NEED TO ADD DYNAMIC MEMORY
     if ((nread = read(connect_fd, directive, 56)) < 0) //Protocol: Get directive (user, cpu, or mem)
     {
         perror("Reading directive (user, cpu, or mem) failed\n");
         close(connect_fd);
-        exit(EXIT_FAILURE);
     }
     else
     {
@@ -123,7 +121,6 @@ void handle_client(int connect_fd)
             {
                 printf("Invalid username\n");
                 close(connect_fd);
-                exit(EXIT_FAILURE);
             }
             else
             {

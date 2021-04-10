@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
             dup2(connect_fd, 1);
             dup2(connect_fd, 2);
             handle_client(connect_fd);
-
+            close(connect_fd);
         }
     }
     return EXIT_SUCCESS;
@@ -91,10 +91,7 @@ void handle_client(int connect_fd)
     {
         received_secret[nread] = '\0';
         if (strcmp(received_secret, secret) != 0) //Incorrect shared secret
-        {
-            printf("Invalid shared secret\n");
             return;
-        }
     }
 
     if (write(connect_fd, "<ready>", 7) < 0) //Protocol: Send <ready>
@@ -103,7 +100,7 @@ void handle_client(int connect_fd)
         return;
     }
 
-    char *directive = malloc(50);                      //NEED TO ADD DYNAMIC MEMORY
+    char *directive = malloc(42); //Linux useradd man page sets max username length to 35; max directive is length 6 (<user>); 35 + 6 + null char = 42
     if ((nread = read(connect_fd, directive, 56)) < 0) //Protocol: Get directive (user, cpu, or mem)
     {
         perror("Reading directive (user, cpu, or mem) failed\n");
@@ -118,13 +115,10 @@ void handle_client(int connect_fd)
             char *user_name = directive + 6;
             struct passwd *user_check = getpwnam(user_name);
             if (user_check == NULL) //Invalid username
-            {
-                printf("Invalid user name\n");
                 return;
-            }
             else
             {
-                char *command = malloc(100); //NEED TO ADD MEMORY BASED ON DIRECTIVE LENGTH
+                char *command = malloc(75); //Max size is 32 (username) + 33 (length of ps call)
                 strcat(command, "ps -u ");
                 strcat(command, user_name);
                 strcat(command, " -o pid,ppid,%cpu,%mem,args");
@@ -144,5 +138,4 @@ void handle_client(int connect_fd)
         }
     }
     free(directive);
-    close(connect_fd);
 }

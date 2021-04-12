@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <pwd.h>
+#include <fcntl.h>
 
 #define port 3333
 #define secret "CSE3183"
@@ -103,10 +104,11 @@ int main(int argc, char *argv[])
 
     if (style == 1) // Send user ps command
     {
-        char user[56] = "<user>";
+        char user[56] = "<user";
         int uid = getuid();
         char *user_name = getpwuid(uid)->pw_name;
         strcat(user, user_name);
+        strcat(user, ">");
 
         if (write(sock_fd, user, strlen(user)) < 0)
         {
@@ -134,21 +136,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *output = malloc(100); //NEED TO ADD DYNAMIC MEMORY
-    if ((nread = read(sock_fd, output, 99)) < 0) //Print ps command output
-    {
-        perror("Reading failed");
-        close(sock_fd);
-        exit(EXIT_FAILURE);
-    }
-
-    else
+    char output[6]; //Could tweak for efficiency
+    while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text (Block until text received, then set to nonblocking so client ends after recived ps command output)
     {
         output[nread] = '\0';
-        printf("%s\n", output);
+        printf("%s", output);
+        fcntl(sock_fd, F_SETFL, fcntl(sock_fd, F_GETFL) | O_NONBLOCK);
     }
 
     close(sock_fd);
-
     return EXIT_SUCCESS;
 }

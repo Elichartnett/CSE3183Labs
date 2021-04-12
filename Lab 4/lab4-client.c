@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 
     if (style == 1) // Send user ps command
     {
-        char user[56] = "<user";
+        char user[42] = "<user:";
         int uid = getuid();
         char *user_name = getpwuid(uid)->pw_name;
         strcat(user, user_name);
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    char output[6]; //Could tweak for efficiency
+    char output[6];                                //Could tweak for efficiency
     while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text (Block until text received, then set to nonblocking so client ends after recived ps command output)
     {
         output[nread] = '\0';

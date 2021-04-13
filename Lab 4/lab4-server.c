@@ -14,6 +14,11 @@
 #define port 3333
 #define secret "CSE3183"
 
+const char *const msg_remps = "<remps>";
+const char *const msg_ready = "<ready>";
+const char *const msg_invalid = "<invalid>";
+const char *const msg_secret = "<" secret ">";
+
 void handle_client(int connect_fd);
 
 int main(int argc, char *argv[])
@@ -72,7 +77,7 @@ int main(int argc, char *argv[])
                 close(connect_fd);
             }
         }
-        return EXIT_SUCCESS;
+        return EXIT_FAILURE; //Failure because this should not be reached
     }
     else
     {
@@ -83,36 +88,32 @@ int main(int argc, char *argv[])
 
 void handle_client(int connect_fd)
 {
-    if (write(connect_fd, "<remps>", 7) < 0) //Protocol: Send <remps>
+    if (write(connect_fd, msg_remps, strlen(msg_remps)) <= 0) //Protocol: Send <remps>
     {
-        perror("Writing <remps> failed\n");
+        perror("Writing msg_remps failed\n");
         close(connect_fd);
         return;
     }
 
     int nread;
-    char received_secret[strlen(secret) + 1];
-    if ((nread = read(connect_fd, received_secret, strlen(secret))) < 0) //Protocol: Verify <shared secret>
+    char received_secret[strlen(msg_secret) + 1];
+    if ((nread = read(connect_fd, received_secret, strlen(msg_secret))) <= 0) //Protocol: Verify <secret>
     {
-        perror("Reading <shared secret> failed\n");
+        perror("Reading msg_secret failed\n");
         return;
     }
     else
     {
         received_secret[nread] = '\0';
-        if (strcmp(received_secret, secret) != 0)
-        {
-            printf("Incorrect secret\n");
+        if (strcmp(received_secret, msg_secret) != 0)
             return;
-        }
     }
 
-    if (write(connect_fd, "<ready>", 7) < 0) //Protocol: Send <ready>
+    if (write(connect_fd, msg_ready, strlen(msg_ready)) < 0) //Protocol: Send <ready>
     {
         perror("Write <ready> failed\n");
         return;
     }
-
     char *directive = malloc(43);                      //Linux useradd man page sets max username length to 35; max directive is length 6 (<user:>); 35 + 7 + null char = 43
     if ((nread = read(connect_fd, directive, 42)) < 0) //Protocol: Get directive (user, cpu, or mem)
     {
@@ -126,7 +127,7 @@ void handle_client(int connect_fd)
         if ((strncmp(directive, "<user:", 6)) == 0) //Directive is user
         {
             char *user_name = directive + 6;
-            user_name[strlen(user_name)-1] = '\0';
+            user_name[strlen(user_name) - 1] = '\0';
             struct passwd *user_check = getpwnam(user_name);
             if (user_check == NULL) //Invalid username
                 return;

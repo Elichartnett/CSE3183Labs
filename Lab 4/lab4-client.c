@@ -1,4 +1,4 @@
-// call using remps SERVER_IP_ADDRESS [user | cpu | mem]
+// call using ./remps SERVER_IP_ADDRESS [user | cpu | mem]
 
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -12,6 +12,11 @@
 
 #define port 3333
 #define secret "CSE3183"
+
+const char * const msg_remps = "<remps>";
+const char * const msg_ready = "<ready>";
+const char * const msg_invalid = "<invalid>";
+const char * const msg_secret = "<" secret ">";
 
 int main(int argc, char *argv[])
 {
@@ -60,9 +65,9 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    char remps[8];
+    char received_remps[strlen(msg_remps) + 1];
     int nread;
-    if ((nread = read(sock_fd, remps, 7)) < 0) //Protocol: Read <remps>
+    if ((nread = read(sock_fd, received_remps, strlen(msg_remps))) < 0) //Protocol: Read <remps>
     {
         perror("Reading <remps> failed");
         close(sock_fd);
@@ -70,23 +75,21 @@ int main(int argc, char *argv[])
     }
     else
     {
-        remps[nread] = '\0';
-        if (strcmp("<remps>", remps) != 0)
+        received_remps[nread] = '\0';
+        if (strcmp("<remps>", received_remps) != 0)
         {
             close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
-
-    if (write(sock_fd, secret, strlen(secret)) < 0) //Protocol: Write <shared secred>
+    if (write(sock_fd, msg_secret, strlen(msg_secret)) < 0) //Protocol: Write <shared secred>
     {
         perror("Writing <shared secret> failed\n");
         close(sock_fd);
         exit(EXIT_FAILURE);
     }
-
-    char ready[8];
-    if ((nread = read(sock_fd, ready, 7)) < 0) //Protocol: Read <ready>
+    char received_ready[strlen(msg_ready) + 1];
+    if ((nread = read(sock_fd, received_ready, strlen(msg_ready))) < 0) //Protocol: Read <ready>
     {
         perror("Reading <ready> failed\n");
         close(sock_fd);
@@ -94,23 +97,22 @@ int main(int argc, char *argv[])
     }
     else
     {
-        ready[nread] = '\0';
-        if (strcmp("<ready>", ready) != 0)
+        received_ready[nread] = '\0';
+        if (strcmp("<ready>", received_ready) != 0)
         {
             close(sock_fd);
             exit(EXIT_FAILURE);
         }
     }
-
     if (style == 1) // Send user ps command
     {
-        char user[42] = "<user:";
+        char user_name[42] = "<user:";
         int uid = getuid();
-        char *user_name = getpwuid(uid)->pw_name;
-        strcat(user, user_name);
-        strcat(user, ">");
+        char *user = getpwuid(uid)->pw_name;
+        strcat(user_name, user);
+        strcat(user_name, ">");
 
-        if (write(sock_fd, user, strlen(user)) < 0)
+        if (write(sock_fd, user_name, strlen(user_name)) < 0)
         {
             perror("Writing directive failed\n");
             close(sock_fd);
@@ -135,7 +137,6 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
-
     char output[6];                                //Could tweak for efficiency
     while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text (Block until text received, then set to nonblocking so client ends after recived ps command output)
     {

@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
                 dup2(connect_fd, 1);
                 dup2(connect_fd, 2);
                 handle_client(connect_fd);
-                close(connect_fd);
+                shutdown(connect_fd, SHUT_RDWR);
             }
         }
         return EXIT_FAILURE; //Failure because this should not be reached

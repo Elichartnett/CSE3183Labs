@@ -138,11 +138,10 @@ int main(int argc, char *argv[])
         }
     }
     char output[6];                                //Could tweak for efficiency
-    while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text (Block until text received, then set to nonblocking so client ends after recived ps command output)
+    while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text 
     {
         output[nread] = '\0';
         printf("%s", output);
-        fcntl(sock_fd, F_SETFL, fcntl(sock_fd, F_GETFL) | O_NONBLOCK);
     }
 
     close(sock_fd);

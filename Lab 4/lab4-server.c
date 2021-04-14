@@ -71,10 +71,17 @@ int main(int argc, char *argv[])
             }
             else
             {
-                dup2(connect_fd, 1);
-                dup2(connect_fd, 2);
+                int stout = dup(1); //copy stdout
+                int sterr = dup(2); //copy stderror
+
+                dup2(connect_fd, 1); //redirect stdout to connect_fd
+                dup2(connect_fd, 2); //redirect stderr to connect_fd
+
                 handle_client(connect_fd);
-                shutdown(connect_fd, SHUT_RDWR);
+
+                dup2(sterr, 1); //restore messages back to stdout
+                dup2(stout, 2); //restore messages back to stdout
+                close(connect_fd);
             }
         }
         return EXIT_FAILURE; //Failure because this should not be reached
@@ -91,7 +98,6 @@ void handle_client(int connect_fd)
     if (write(connect_fd, msg_remps, strlen(msg_remps)) <= 0) //Protocol: Send <remps>
     {
         perror("Writing msg_remps failed\n");
-        close(connect_fd);
         return;
     }
 

@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
-    char output[6];                                //Could tweak for efficiency
-    while ((nread = read(sock_fd, output, 5)) > 0) //Read arbitrary amount of text 
+    char output[1025];
+    while ((nread = read(sock_fd, output, 1024)) > 0) //Read arbitrary amount of text 
     {
         output[nread] = '\0';
         printf("%s", output);

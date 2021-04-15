@@ -139,12 +139,9 @@ void handle_client(int connect_fd)
                 return;
             else
             {
-                char *command = malloc(75); //Max size is 32 (username) + 33 (length of ps call)
-                strcat(command, "ps -u ");
-                strcat(command, user_name);
-                strcat(command, " -o pid,ppid,%cpu,%mem,args");
+                char command[75];
+                sprintf(command, "ps -u %s -o pid,ppid,%%cpu,%%mem,args", user_name); //Max size is 32 (username) + 33 (length of ps call)
                 system(command);
-                free(command);
             }
         }
         else if ((strcmp(directive, "<cpu>")) == 0) //Directive is cpu
